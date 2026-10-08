@@ -36,3 +36,8 @@ La propriété `server.shutdown: graceful` permet au serveur de terminer le trai
 **Q4.1** La commande `kubectl apply -f k8s/` applique les fichiers par ordre alphabétique. Les préfixes `00-`, `10-`, etc. servent à garantir que les dépendances sont créées dans le bon ordre (ex: le Namespace doit exister avant les ConfigMaps, et les ConfigMaps avant les Deployments).
 **Q4.2** C'est la `startupProbe` qui est responsable. Ce n'est pas une anomalie : Spring Boot est assez long à démarrer (10 à 40 secondes). La `startupProbe` retarde l'activation des autres probes pour éviter un redémarrage prématuré du conteneur pendant son lancement.
 **Q4.3** Avec `imagePullPolicy: Always`, Kubernetes essaierait systématiquement de télécharger l'image depuis Docker Hub. Comme les images ont été construites localement et n'existent pas sur un registre public, cela échouerait avec une erreur `ErrImagePull` ou `ImagePullBackOff`.
+
+## Partie 5
+**Q5.1** Deux Pods distincts ont répondu dans la boucle. C'est l'objet `Service` (de type `ClusterIP`) qui agit comme un Load Balancer interne et répartit la charge entre ces Pods (Endpoints).
+**Q5.2** Avec `pathType: Exact` sur `/api/movies`, une requête vers `GET /api/movies/1` renverrait une erreur `404 Not Found` depuis l'Ingress, car le chemin n'est pas exactement égal à `/api/movies`. C'est pourquoi on utilise `Prefix`.
+**Q5.3** On obtient un code `404 Not Found` (ou `502`). C'est hautement souhaitable d'un point de vue sécurité : on ne veut pas que l'extérieur (le trafic venant de l'Ingress) puisse accéder aux URLs d'administration (`/actuator/health`).
