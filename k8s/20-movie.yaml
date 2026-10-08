@@ -8,15 +8,33 @@ spec:
   selector:
     matchLabels:
       app: movie
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   template:
     metadata:
       labels:
         app: movie
     spec:
+      volumes:
+        - name: tmp-volume
+          emptyDir: {}
       containers:
         - name: movie
           image: movie-service:1.0.0
           imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
           ports:
             - name: http
               containerPort: 8080
