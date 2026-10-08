@@ -1,0 +1,21 @@
+services:
+  movie:
+    build: ./movie-service
+    image: ___
+    ports: ["8080:8080"]
+    environment:
+      ___: compose
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "___"]
+      interval: 5s
+      retries: 20
+
+  ticket:
+    build: ./ticket-service
+    image: ___
+    ports: ["8082:8080"]
+    environment:
+      ___: ___
+    depends_on:
+      ___:
+        condition: ___
