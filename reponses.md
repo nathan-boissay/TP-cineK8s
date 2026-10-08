@@ -41,3 +41,27 @@ La propriété `server.shutdown: graceful` permet au serveur de terminer le trai
 **Q5.1** Deux Pods distincts ont répondu dans la boucle. C'est l'objet `Service` (de type `ClusterIP`) qui agit comme un Load Balancer interne et répartit la charge entre ces Pods (Endpoints).
 **Q5.2** Avec `pathType: Exact` sur `/api/movies`, une requête vers `GET /api/movies/1` renverrait une erreur `404 Not Found` depuis l'Ingress, car le chemin n'est pas exactement égal à `/api/movies`. C'est pourquoi on utilise `Prefix`.
 **Q5.3** On obtient un code `404 Not Found` (ou `502`). C'est hautement souhaitable d'un point de vue sécurité : on ne veut pas que l'extérieur (le trafic venant de l'Ingress) puisse accéder aux URLs d'administration (`/actuator/health`).
+
+## Partie 6
+**Prédictions (6.1) :**
+- (a) `ticket` passera en `0/2 READY` avec `0 RESTARTS`.
+- (b) La commande `get endpoints ticket` ne listera aucune adresse IP (vide).
+- (c) Le code HTTP de `/api/tickets` via l'Ingress sera un `503 Service Unavailable`.
+- (d) La liveness de `ticket` restera en statut `UP` (réussie).
+
+**Explication Q6.1 :**
+1. Le déploiement `movie` est réduit à 0 réplicas, le Service `movie` n'a plus de Pods derrière.
+2. La `readinessProbe` des Pods `ticket` échoue au bout de 15 secondes (3 échecs) car elle n'arrive plus à joindre `movie`.
+3. Kubernetes retire les Pods `ticket` de la liste des Endpoints du Service `ticket`.
+4. L'Ingress route vers le Service `ticket` qui n'a plus aucun endpoint actif, d'où le retour d'une erreur 503.
+Les `RESTARTS` restent à 0 car la `livenessProbe` (qui surveille la santé interne du conteneur) est toujours en succès, la JVM va bien.
+
+**Tableau de dépannage :**
+
+| # | Statut observé | Commande de diagnostic | Cause exacte | Correction apportée |
+|---|----------------|------------------------|--------------|---------------------|
+| 1 | `ErrImagePull` / `ImagePullBackOff` | `kubectl describe pod ...` | L'image est locale mais `imagePullPolicy: Always` tente de la télécharger sur Docker Hub. | Remplacé par `imagePullPolicy: IfNotPresent` |
+| 2 | `CreateContainerConfigError` | `kubectl describe pod ...` puis `kubectl get cm` | La ConfigMap demandée s'appelle `ticket-configmap` dans le yaml, mais elle a été créée sous le nom `ticket-config`. | Remplacé par `name: ticket-config` |
+| 3 | `0/1 Ready` indéfiniment | `kubectl describe pod ...` (voir section Events pour Readiness probe failed) | La readinessProbe interroge le port `8081`, or l'application écoute sur le port `8080`. | Remplacé par `port: 8080` (ou `http`) |
+
+**Q6.3** La modification de la ConfigMap n'est pas répercutée automatiquement sur les Pods déjà en cours d'exécution (les variables d'environnement sont fixées au démarrage). C'est la commande `kubectl rollout restart deploy/movie` qui a forcé la création de nouveaux Pods prenant en compte la nouvelle configuration.
