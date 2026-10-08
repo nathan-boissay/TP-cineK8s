@@ -65,3 +65,8 @@ Les `RESTARTS` restent à 0 car la `livenessProbe` (qui surveille la santé inte
 | 3 | `0/1 Ready` indéfiniment | `kubectl describe pod ...` (voir section Events pour Readiness probe failed) | La readinessProbe interroge le port `8081`, or l'application écoute sur le port `8080`. | Remplacé par `port: 8080` (ou `http`) |
 
 **Q6.3** La modification de la ConfigMap n'est pas répercutée automatiquement sur les Pods déjà en cours d'exécution (les variables d'environnement sont fixées au démarrage). C'est la commande `kubectl rollout restart deploy/movie` qui a forcé la création de nouveaux Pods prenant en compte la nouvelle configuration.
+
+## Partie 7
+**Q7.1** 1. Le Pod ticket fait une requête vers `http://movie:8080`. 2. Le DNS interne du cluster (CoreDNS) résout le nom `movie` en l'adresse IP virtuelle (`ClusterIP`) du Service. 3. Le composant `kube-proxy` (via iptables/IPVS) intercepte le trafic vers cette IP et le redirige vers l'adresse IP réelle de l'un des Pods `movie` prêts (les endpoints).
+**Q7.2** Le nombre varie d'un appel à l'autre car chaque requête peut être dirigée vers l'un ou l'autre des Pods `ticket`, et chacun stocke sa propre liste de réservations en mémoire vive (RAM). Si on supprime les Pods, toutes les données sont perdues. La solution architecturale est d'utiliser un stockage externe persistant et partagé (comme une base de données PostgreSQL ou Redis) plutôt que l'état en mémoire.
+**Q7.3** Quand on supprime un Pod manuellement, un nouveau Pod est recréé instantanément. Si on avait déployé un `Pod` "nu", la suppression aurait été définitive. Le `Deployment` (via son ReplicaSet) s'assure en permanence qu'il y a toujours exactement le nombre de réplicas demandé (2).
